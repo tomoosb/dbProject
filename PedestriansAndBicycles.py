@@ -3,7 +3,6 @@ import mysql.connector
 from datetime import datetime, timezone
 import pandas as pd
 
-
 def createTable1():
     mycursor.execute("CREATE TABLE IF NOT EXISTS BaselData ("
                      "CityID INTEGER PRIMARY KEY,"
@@ -51,7 +50,7 @@ mydb = mysql.connector.connect(
 mycursor = mydb.cursor()
 timeStart = time.time()
 dropPedAndBic()
-dropBasData()
+#dropBasData()
 createTable1()
 createTable2()
 
@@ -61,7 +60,8 @@ basId = mycursor.fetchone()[0]
 
 sqlBS = "INSERT INTO BaselData (CityID, TimeStamp, HourTimestamp) " \
         "VALUES (%s,%s,%s)"
-sqlPed = "INSERT INTO PedAndBic (CityID, SiteCode, SiteName, DirectionName, LaneCode, LaneName, Date, TimeFrom, TimeTo, ValuesApproved, ValuesEdited, TrafficType, Total) " \
+sqlPed = "INSERT INTO PedAndBic (CityID, SiteCode, SiteName, DirectionName, LaneCode, LaneName, Date, TimeFrom, " \
+         "TimeTo, ValuesApproved, ValuesEdited, TrafficType, Total) " \
          "VALUE (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
 time0 = time.time()
@@ -74,13 +74,13 @@ print("loaded in", (time.time() - time0) // 1, "seconds, now splitting the dataf
 time99 = time.time()
 df[['SiteCode', "SiteName", "DirectionName", "LaneCode", "LaneName", "Date", "TimeFrom", "TimeTo", "ValuesApproved",
     "ValuesEdited", "TrafficType", "Total"]] = df[
-    'SiteCode;SiteName;DirectionName;LaneCode;LaneName;Date;TimeFrom;TimeTo;ValuesApproved;ValuesEdited;TrafficType;Total'].str.split(
+    'SiteCode;SiteName;DirectionName;LaneCode;LaneName;Date;TimeFrom;TimeTo;ValuesApproved;' \
+    'ValuesEdited;TrafficType;Total'].str.split(
     ';', expand=True)
 df = df.drop(columns=[
-    'SiteCode;SiteName;DirectionName;LaneCode;LaneName;Date;TimeFrom;TimeTo;ValuesApproved;ValuesEdited;TrafficType;Total'])
+    'SiteCode;SiteName;DirectionName;LaneCode;LaneName;Date;TimeFrom;TimeTo;ValuesApproved;'
+    'ValuesEdited;TrafficType;Total'])
 dfNoNan = df.fillna(0)
-
-
 
 siteCode = dfNoNan['SiteCode']
 siteName = dfNoNan['SiteName']
@@ -123,21 +123,11 @@ counter = 0
 for i in range(0, totalRows, batch_size):
     batch_data_ped = data_ped[i:i + batch_size]
     mycursor.executemany(sqlPed, batch_data_ped)
-
-    # Adjust basId for the next batch if needed
-    basId += batch_size
-
-    mydb.commit()
-    timeRun = time.time() - time1
-    percentDone = i / totalRows * 100
-
-    batch_data_ped = data_ped[i:i + batch_size]
-    mycursor.executemany(sqlPed, batch_data_ped)
-
     mydb.commit()
 
-    # Adjust basId for the next batch if needed
-    basId += batch_size
+    batch_data_bas = data_bas[i:i + batch_size]
+    mycursor.executemany(sqlBS, batch_data_bas)
+    mydb.commit()
 
     timeRun = time.time() - time1
     percentDone = i / totalRows * 100
@@ -145,7 +135,7 @@ for i in range(0, totalRows, batch_size):
         if percentDone != 0:
             print(percentDone, "percent done,", i, "rows inserted, running since", timeRun // 1,
                   "seconds or", timeRun // 60, "minutes. The program will run for around",
-                  timeRun * 100 / percentDone // 60, "more minutes.")
+                  timeRun * 100 / percentDone // 60, "minutes.")
     counter += 1
-print("Hurray, table is integrated! In total,", totalRows, "rows have been inserted. The program took in total",timeStart // 1,
-                  "seconds or", timeStart // 60, "minutes.")
+print("Hurray, table is integrated! In total,", totalRows, "rows have been inserted. The program took in total",
+      (time.time() - timeStart) // 1, "seconds or", (time.time() - timeStart) // 60, "minutes.")

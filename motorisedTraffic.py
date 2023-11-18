@@ -3,13 +3,10 @@ import csv
 import time
 import mysql.connector
 from datetime import datetime, timezone
-import pandas as pd
-
 
 def fix_nulls(s):
     for line in s:
         yield line.replace('\0', ' ')
-
 
 def createTable1():
     mycursor.execute("CREATE TABLE IF NOT EXISTS BaselData ("
@@ -19,13 +16,12 @@ def createTable1():
                      ");")
     mydb.commit()
 
-
 def createTable2():
     mycursor.execute("CREATE TABLE IF NOT EXISTS motorisedTraffic ("
                      "CityID INTEGER PRIMARY KEY REFERENCES BaselData(CityID),"
                      "SiteCode VARCHAR(30),"
                      "SiteName VARCHAR(60),"
-                     "DirectionName VARCHAR(50),"
+                     "DirectionName VARCHAR(60),"
                      "LaneCode INTEGER,"
                      "LaneName VARCHAR(30),"
                      "Date VARCHAR(30),"
@@ -67,6 +63,7 @@ mydb = mysql.connector.connect(
     database="basel"
 )
 
+timeStart = time.time()
 mycursor = mydb.cursor()
 dropMotTraf()
 # dropBasData()
@@ -88,6 +85,7 @@ sqlMot = "INSERT INTO motorisedTraffic (CityID, SiteCode, SiteName, DirectionNam
 
 time0 = time.time()
 totalRows = 5072496
+batch_size = 1000  # Adjust the batch size as needed
 
 with codecs.open(r'C:\Users\Tobit\DatabasesProject\src\Verkehrszähldaten motorisierter Individualverkehr.csv', 'rU',
                  encoding='unicode_escape') as f:
@@ -95,8 +93,6 @@ with codecs.open(r'C:\Users\Tobit\DatabasesProject\src\Verkehrszähldaten motori
     reader = csv.reader(fix_nulls(f), delimiter=";", quotechar="\"")
     print("starting the loop.")
     for i, line in enumerate(reader):
-        if i < 175000:
-            continue
         tsString = f"{str(line[5])} {str(line[6])}"
         ts = int(datetime.strptime(tsString, "%d.%m.%Y %H:%M").timestamp())
         tsHour = int(
@@ -117,7 +113,10 @@ with codecs.open(r'C:\Users\Tobit\DatabasesProject\src\Verkehrszähldaten motori
             str(line[7]), int(line[8]), int(line[9]), str(line[10]), int(line[11]), int(line[12]), int(line[13]),
             int(line[14]), int(line[15]), int(line[16]), int(line[17]), int(line[18]), int(line[19]), int(line[20]),
             int(line[21]), int(line[22])))
-        mydb.commit()
+
+        if i % batch_size == 0:
+            mydb.commit()
+
         basId = basId + 1
 
         if i % 25000 == 0:
@@ -126,8 +125,7 @@ with codecs.open(r'C:\Users\Tobit\DatabasesProject\src\Verkehrszähldaten motori
             if percentDone != 0:
                 print(percentDone, "percent done,", i, "rows inserted, running since", timeRun // 1,
                       "seconds or", timeRun // 60, "minutes. The program will run for around",
-                      timeRun * 100 / percentDone // 60, "more minutes.")
-            else:
-                print(percentDone, "procent done,", i, "rows inserted, running since", timeRun // 1,
-                      "seconds or", timeRun // 60, "minutes. The program will run for a long time.")
-    print("Hurray, table is integrated! In total,", i, "rows have been inserted.")
+                      timeRun * 100 / percentDone // 60, "minutes.")
+
+    print("Hurray, table is integrated! In total,", totalRows, "rows have been inserted. The program took in total",
+          (time.time() - timeStart) // 1, "seconds or", (time.time() - timeStart) // 60, "minutes.")
