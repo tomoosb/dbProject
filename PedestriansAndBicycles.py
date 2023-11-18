@@ -51,15 +51,13 @@ mydb = mysql.connector.connect(
 mycursor = mydb.cursor()
 timeStart = time.time()
 dropPedAndBic()
-# dropBasData()
+dropBasData()
 createTable1()
 createTable2()
 
 mycursor.execute("SELECT COUNT(*) FROM BaselData")
 
 basId = mycursor.fetchone()[0]
-
-print("Size of BaselID before this table is implemented is", basId)
 
 sqlBS = "INSERT INTO BaselData (CityID, TimeStamp, HourTimestamp) " \
         "VALUES (%s,%s,%s)"
@@ -70,10 +68,9 @@ time0 = time.time()
 print("loading csv into pandas")
 PedBic = pd.read_csv(r'C:\Users\Tobit\DatabasesProject\src\Verkehrszähldaten Velos und Fussgänger.csv',
                      encoding='unicode_escape')
-print("loaded in", (time.time() - time0) // 1, "seconds")
-
 df = pd.DataFrame(PedBic)
-print("splitting df")
+print("loaded in", (time.time() - time0) // 1, "seconds, now splitting the dataframe.")
+
 time99 = time.time()
 df[['SiteCode', "SiteName", "DirectionName", "LaneCode", "LaneName", "Date", "TimeFrom", "TimeTo", "ValuesApproved",
     "ValuesEdited", "TrafficType", "Total"]] = df[
@@ -83,7 +80,7 @@ df = df.drop(columns=[
     'SiteCode;SiteName;DirectionName;LaneCode;LaneName;Date;TimeFrom;TimeTo;ValuesApproved;ValuesEdited;TrafficType;Total'])
 dfNoNan = df.fillna(0)
 
-print("splitted in", (time.time() - time99) // 1, "seconds.")
+
 
 siteCode = dfNoNan['SiteCode']
 siteName = dfNoNan['SiteName']
@@ -99,6 +96,7 @@ traffType = dfNoNan["TrafficType"]
 total = dfNoNan["Total"].replace('', '-1')
 del df, dfNoNan
 
+print("splitted in", (time.time() - time99) // 1, "seconds. Starting with the creation of the batches now.")
 time1 = time.time()
 totalRows = len(total)  # 7916400
 
